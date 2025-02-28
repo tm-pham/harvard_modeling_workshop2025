@@ -1,0 +1,93 @@
+---
+title: "13th Annual Modeling and Public Health Workshop"
+author: 
+  - Thi Mui Pham (tmpham@hsph.harvard.edu) 
+  - Indra Ojeda Gonzalez (igonzalezojeda@g.harvard.edu)
+  
+date: "March 3, 2025"
+output:
+  pdf_document: default
+  html_document: default
+  header-includes: 
+  - \renewcommand{\and}{\\}
+---
+
+```{r setup, include=FALSE}
+# Set global chunk options
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+# Load the pheatmap library for heatmap plots
+library(pheatmap)
+```
+
+# AMR outbreak session
+
+Researchers at Rush University Medical Center aimed at studying how MRSA spreads in the hospital’s ICUs ([Popovich et al, 2024](https://doi.org/10.1093/cid/ciaa731)). They sampled patients, healthcare workers, medical equipment, and the environment. In total, they obtained 413 MRSA bacterial isolates and performed whole-genome sequencing to analyze their genetic relationships.
+
+In the following exercises, you will analyze genomic and epidemiological data to help interpret their findings, identify how MRSA spreads, and brainstorm strategies to control it.
+
+
+## Exercise 1: SNV matrix
+The SNV (single nucleotide variant) matrix shows the genetic differences between MRSA samples. Each cell in the matrix represents the number of SNVs between two isolates. The goal of this exercise is to identify transmission clusters by identifying clusters of isolates that are genetically similar. 
+
+By identifying groups of isolates that are genetically very similar (below a certain SNV threshold), you can define transmission clusters — groups of bacteria likely linked by recent spread. These clusters help us understand how MRSA is moving within and between ICUs. For this analysis, we will focus on 54 samples that appear to be part of transmission clusters. 
+
+### Set up
+First, set your working directory to the folder where this RMarkdown file and the data is located. 
+```{r set working directory}
+setwd("/Users/tm-pham/academia/hsph/modeling_workshop/2025/AMR/outbreak_session/")
+```
+
+### Load data 
+We provide you an SNV matrix for the 54 samples as an external file. Load the data from a tab-separated file (file path is relative to working directory). 
+```{r Load data}
+data <- read.table("USA100_simulated_SNV_matrix.txt", header = TRUE, sep = "\t")
+```
+
+```{r reformat matrix, include=FALSE}
+# Extract IDs from the first column and convert remaining columns to a matrix
+ids <- data[, 1]
+data <- as.matrix(data[, -1])
+rownames(data) <- ids
+colnames(data) <- ids
+```
+
+### Set threshold for clustering
+Now, set this threshold parameter to adjust the number of clusters.
+```{r set threshold}
+threshold <- 40
+```
+
+### Hierarchical clustering
+Using the pre-set threshold, we perform hierarchical clustering to determine the number of clusters. We use the so-called "complete-linkage" method where the distance between two clusters is defined as the maximum distance between any single pair of elements — one from each cluster. 
+```{r clustering}
+hc <- hclust(as.dist(data), method = "complete")
+clusters <- cutree(hc, h = threshold)
+num_clusters <- length(unique(clusters))
+cat("Number of clusters:", num_clusters, "\n")
+```
+
+```{r color scale, include=FALSE}
+# Here, we define the color scale for the heatmap plot
+# Define color limits
+vmin <- threshold / 3
+vmax <- threshold *1.5
+# Create a sequence of breaks for 100 color intervals
+breaks <- seq(vmin, vmax, length.out = 101)
+# Create a color palette from deepskyblue4 to burlywood1 to brown3
+colors <- colorRampPalette(c("deepskyblue4", "burlywood1", "brown3"))(100)
+```
+
+### Heatmap plot
+Finally, we plot the heatmap of the SNV matrix with the identified clusters. You can also visit this link: https://publichealthanalyticsmodeling.shinyapps.io/workshop_amr_session_shiny/ to interactively explore the data and adjust the clustering threshold.
+```{r Heatmap plot}
+pheatmap(data, 
+         scale = "none", 
+         cutree_rows = num_clusters, 
+         cutree_cols = num_clusters, 
+         col = colors, 
+         breaks = breaks, 
+         fontsize = 5,
+         clustering_method = "complete")
+```
+
+
